@@ -6,12 +6,13 @@ package json_test
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"strings"
+
+	"github.com/ajuga-deps/go/src/encoding/json"
 )
 
 func ExampleMarshal() {
@@ -31,7 +32,7 @@ func ExampleMarshal() {
 	}
 	os.Stdout.Write(b)
 	// Output:
-	// {"ID":1,"Name":"Reds","Colors":["Crimson","Red","Ruby","Maroon"]}
+	// {"Colors":["Crimson","Red","Ruby","Maroon"],"ID":1,"Name":"Reds"}
 }
 
 func ExampleUnmarshal() {

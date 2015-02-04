@@ -231,7 +231,7 @@ var unmarshalTests = []unmarshalTest{
 	{in: `"g-clef: \uD834\uDD1E"`, ptr: new(string), out: "g-clef: \U0001D11E"},
 	{in: `"invalid: \uD834x\uDD1E"`, ptr: new(string), out: "invalid: \uFFFDx\uFFFD"},
 	{in: "null", ptr: new(interface{}), out: nil},
-	{in: `{"X": [1,2,3], "Y": 4}`, ptr: new(T), out: T{Y: 4}, err: &UnmarshalTypeError{"array", reflect.TypeOf(""), 7}},
+	{in: `{"X": [1,2,3], "Y": 4}`, ptr: new(T), out: T{Y: 4}, err: &UnmarshalTypeError{"array", reflect.TypeOf("")}},
 	{in: `{"x": 1}`, ptr: new(tx), out: tx{}},
 	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: float64(1), F2: int32(2), F3: Number("3")}},
 	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: Number("1"), F2: int32(2), F3: Number("3")}, useNumber: true},
@@ -406,13 +406,6 @@ var unmarshalTests = []unmarshalTest{
 		ptr: new(string),
 		out: "hello\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdworld",
 	},
-
-	// issue 8305
-	{
-		in:  `{"2009-11-10T23:00:00Z": "hello world"}`,
-		ptr: &map[time.Time]string{},
-		err: &UnmarshalTypeError{"object", reflect.TypeOf(map[time.Time]string{}), 1},
-	},
 }
 
 func TestMarshal(t *testing.T) {
@@ -502,7 +495,7 @@ func TestMarshalEmbeds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "{\"Level0\":1,\"Level1b\":2,\"Level1c\":3,\"Level1a\":5,\"LEVEL1B\":6,\"e\":{\"Level1a\":8,\"Level1b\":9,\"Level1c\":10,\"Level1d\":11,\"x\":12},\"Loop1\":13,\"Loop2\":14,\"X\":15,\"Y\":16,\"Z\":17}"
+	want := "{\"LEVEL1B\":6,\"Level0\":1,\"Level1a\":5,\"Level1b\":2,\"Level1c\":3,\"Loop1\":13,\"Loop2\":14,\"X\":15,\"Y\":16,\"Z\":17,\"e\":{\"Level1a\":8,\"Level1b\":9,\"Level1c\":10,\"Level1d\":11,\"x\":12}}"
 	if string(b) != want {
 		t.Errorf("Wrong marshal result.\n got: %q\nwant: %q", b, want)
 	}
@@ -521,7 +514,6 @@ func TestUnmarshal(t *testing.T) {
 		if tt.ptr == nil {
 			continue
 		}
-
 		// v = new(right-type)
 		v := reflect.New(reflect.TypeOf(tt.ptr).Elem())
 		dec := NewDecoder(bytes.NewReader(in))
@@ -529,9 +521,7 @@ func TestUnmarshal(t *testing.T) {
 			dec.UseNumber()
 		}
 		if err := dec.Decode(v.Interface()); !reflect.DeepEqual(err, tt.err) {
-			t.Errorf("#%d: %v, want %v", i, err, tt.err)
-			continue
-		} else if err != nil {
+			t.Errorf("#%d: %v want %v", i, err, tt.err)
 			continue
 		}
 		if !reflect.DeepEqual(v.Elem().Interface(), tt.out) {
@@ -688,7 +678,6 @@ var wrongStringTests = []wrongStringTest{
 	{`{"result":"x"}`, `json: invalid use of ,string struct tag, trying to unmarshal "x" into string`},
 	{`{"result":"foo"}`, `json: invalid use of ,string struct tag, trying to unmarshal "foo" into string`},
 	{`{"result":"123"}`, `json: invalid use of ,string struct tag, trying to unmarshal "123" into string`},
-	{`{"result":123}`, `json: invalid use of ,string struct tag, trying to unmarshal unquoted value into string`},
 }
 
 // If people misuse the ,string modifier, the error message should be
@@ -848,38 +837,18 @@ var pallValue = All{
 
 var allValueIndent = `{
 	"Bool": true,
+	"ByteSlice": "Gxwd",
+	"EmptyMap": {},
+	"EmptySlice": [],
+	"Float32": 14.1,
+	"Float64": 15.1,
 	"Int": 2,
-	"Int8": 3,
 	"Int16": 4,
 	"Int32": 5,
 	"Int64": 6,
-	"Uint": 7,
-	"Uint8": 8,
-	"Uint16": 9,
-	"Uint32": 10,
-	"Uint64": 11,
-	"Uintptr": 12,
-	"Float32": 14.1,
-	"Float64": 15.1,
-	"bar": "foo",
-	"bar2": "foo2",
+	"Int8": 3,
 	"IntStr": "42",
-	"PBool": null,
-	"PInt": null,
-	"PInt8": null,
-	"PInt16": null,
-	"PInt32": null,
-	"PInt64": null,
-	"PUint": null,
-	"PUint8": null,
-	"PUint16": null,
-	"PUint32": null,
-	"PUint64": null,
-	"PUintptr": null,
-	"PFloat32": null,
-	"PFloat64": null,
-	"String": "16",
-	"PString": null,
+	"Interface": 5.2,
 	"Map": {
 		"17": {
 			"Tag": "tag17"
@@ -894,10 +863,32 @@ var allValueIndent = `{
 		},
 		"20": null
 	},
+	"NilMap": null,
+	"NilSlice": null,
+	"PBool": null,
+	"PFloat32": null,
+	"PFloat64": null,
+	"PInt": null,
+	"PInt16": null,
+	"PInt32": null,
+	"PInt64": null,
+	"PInt8": null,
+	"PInterface": null,
 	"PMap": null,
 	"PMapP": null,
-	"EmptyMap": {},
-	"NilMap": null,
+	"PPSmall": null,
+	"PSlice": null,
+	"PSliceP": null,
+	"PSmall": {
+		"Tag": "tag31"
+	},
+	"PString": null,
+	"PUint": null,
+	"PUint16": null,
+	"PUint32": null,
+	"PUint64": null,
+	"PUint8": null,
+	"PUintptr": null,
 	"Slice": [
 		{
 			"Tag": "tag20"
@@ -915,65 +906,54 @@ var allValueIndent = `{
 			"Tag": "tag23"
 		}
 	],
-	"PSlice": null,
-	"PSliceP": null,
-	"EmptySlice": [],
-	"NilSlice": null,
+	"Small": {
+		"Tag": "tag30"
+	},
+	"String": "16",
 	"StringSlice": [
 		"str24",
 		"str25",
 		"str26"
 	],
-	"ByteSlice": "Gxwd",
-	"Small": {
-		"Tag": "tag30"
-	},
-	"PSmall": {
-		"Tag": "tag31"
-	},
-	"PPSmall": null,
-	"Interface": 5.2,
-	"PInterface": null
+	"Uint": 7,
+	"Uint16": 9,
+	"Uint32": 10,
+	"Uint64": 11,
+	"Uint8": 8,
+	"Uintptr": 12,
+	"bar": "foo",
+	"bar2": "foo2"
 }`
 
 var allValueCompact = strings.Map(noSpace, allValueIndent)
 
 var pallValueIndent = `{
 	"Bool": false,
+	"ByteSlice": null,
+	"EmptyMap": null,
+	"EmptySlice": null,
+	"Float32": 0,
+	"Float64": 0,
 	"Int": 0,
-	"Int8": 0,
 	"Int16": 0,
 	"Int32": 0,
 	"Int64": 0,
-	"Uint": 0,
-	"Uint8": 0,
-	"Uint16": 0,
-	"Uint32": 0,
-	"Uint64": 0,
-	"Uintptr": 0,
-	"Float32": 0,
-	"Float64": 0,
-	"bar": "",
-	"bar2": "",
-        "IntStr": "0",
+	"Int8": 0,
+	"IntStr": "0",
+	"Interface": null,
+	"Map": null,
+	"MapP": null,
+	"NilMap": null,
+	"NilSlice": null,
 	"PBool": true,
+	"PFloat32": 14.1,
+	"PFloat64": 15.1,
 	"PInt": 2,
-	"PInt8": 3,
 	"PInt16": 4,
 	"PInt32": 5,
 	"PInt64": 6,
-	"PUint": 7,
-	"PUint8": 8,
-	"PUint16": 9,
-	"PUint32": 10,
-	"PUint64": 11,
-	"PUintptr": 12,
-	"PFloat32": 14.1,
-	"PFloat64": 15.1,
-	"String": "",
-	"PString": "16",
-	"Map": null,
-	"MapP": null,
+	"PInt8": 3,
+	"PInterface": 5.2,
 	"PMap": {
 		"17": {
 			"Tag": "tag17"
@@ -988,10 +968,9 @@ var pallValueIndent = `{
 		},
 		"20": null
 	},
-	"EmptyMap": null,
-	"NilMap": null,
-	"Slice": null,
-	"SliceP": null,
+	"PPSmall": {
+		"Tag": "tag31"
+	},
 	"PSlice": [
 		{
 			"Tag": "tag20"
@@ -1009,19 +988,29 @@ var pallValueIndent = `{
 			"Tag": "tag23"
 		}
 	],
-	"EmptySlice": null,
-	"NilSlice": null,
-	"StringSlice": null,
-	"ByteSlice": null,
+	"PSmall": null,
+	"PString": "16",
+	"PUint": 7,
+	"PUint16": 9,
+	"PUint32": 10,
+	"PUint64": 11,
+	"PUint8": 8,
+	"PUintptr": 12,
+	"Slice": null,
+	"SliceP": null,
 	"Small": {
 		"Tag": ""
 	},
-	"PSmall": null,
-	"PPSmall": {
-		"Tag": "tag31"
-	},
-	"Interface": null,
-	"PInterface": 5.2
+	"String": "",
+	"StringSlice": null,
+	"Uint": 0,
+	"Uint16": 0,
+	"Uint32": 0,
+	"Uint64": 0,
+	"Uint8": 0,
+	"Uintptr": 0,
+	"bar": "",
+	"bar2": ""
 }`
 
 var pallValueCompact = strings.Map(noSpace, pallValueIndent)
@@ -1071,25 +1060,18 @@ func TestEmptyString(t *testing.T) {
 	}
 }
 
-// Test that a null for ,string is not replaced with the previous quoted string (issue 7046).
-// It should also not be an error (issue 2540, issue 8587).
+// Test that the returned error is non-nil when trying to unmarshal null string into int, for successive ,string option
+// Issue 7046
 func TestNullString(t *testing.T) {
 	type T struct {
-		A int  `json:",string"`
-		B int  `json:",string"`
-		C *int `json:",string"`
+		A int `json:",string"`
+		B int `json:",string"`
 	}
-	data := []byte(`{"A": "1", "B": null, "C": null}`)
+	data := []byte(`{"A": "1", "B": null}`)
 	var s T
-	s.B = 1
-	s.C = new(int)
-	*s.C = 2
 	err := Unmarshal(data, &s)
-	if err != nil {
-		t.Fatalf("Unmarshal: %v", err)
-	}
-	if s.B != 1 || s.C != nil {
-		t.Fatalf("after Unmarshal, s.B=%d, s.C=%p, want 1, nil", s.B, s.C)
+	if err == nil {
+		t.Fatalf("expected error; got %v", s)
 	}
 }
 

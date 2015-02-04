@@ -40,8 +40,8 @@ import (
 //
 // Floating point, integer, and Number values encode as JSON numbers.
 //
-// String values encode as JSON strings coerced to valid UTF-8,
-// replacing invalid bytes with the Unicode replacement rune.
+// String values encode as JSON strings. InvalidUTF8Error will be returned
+// if an invalid UTF-8 sequence is encountered.
 // The angle brackets "<" and ">" are escaped to "\u003c" and "\u003e"
 // to keep some browsers from misinterpreting JSON output as HTML.
 // Ampersand "&" is also escaped to "\u0026" for the same reason.
@@ -79,8 +79,8 @@ import (
 //
 // The "string" option signals that a field is stored as JSON inside a
 // JSON-encoded string. It applies only to fields of string, floating point,
-// integer, or boolean types. This extra level of encoding is sometimes used
-// when communicating with JavaScript programs:
+// or integer types. This extra level of encoding is sometimes used when
+// communicating with JavaScript programs:
 //
 //    Int64String int64 `json:",string"`
 //
@@ -93,8 +93,6 @@ import (
 // as described in the next paragraph.
 // An anonymous struct field with a name given in its JSON tag is treated as
 // having that name, rather than being anonymous.
-// An anonymous struct field of interface type is treated the same as having
-// that type as its name, rather than being anonymous.
 //
 // The Go visibility rules for struct fields are amended for JSON when
 // deciding which field to marshal or unmarshal. If there are
@@ -204,6 +202,7 @@ func (e *UnsupportedTypeError) Error() string {
 	return "json: unsupported type: " + e.Type.String()
 }
 
+// UnsupportedValueError ...
 type UnsupportedValueError struct {
 	Value reflect.Value
 	Str   string
@@ -213,6 +212,7 @@ func (e *UnsupportedValueError) Error() string {
 	return "json: unsupported value: " + e.Str
 }
 
+// InvalidUTF8Error ...
 // Before Go 1.2, an InvalidUTF8Error was returned by Marshal when
 // attempting to encode a string value with invalid UTF-8 sequences.
 // As of Go 1.2, Marshal instead coerces the string to valid UTF-8 by
@@ -227,6 +227,7 @@ func (e *InvalidUTF8Error) Error() string {
 	return "json: invalid UTF-8 in string: " + strconv.Quote(e.S)
 }
 
+// MarshalerError ...
 type MarshalerError struct {
 	Type reflect.Type
 	Err  error
@@ -602,7 +603,7 @@ type mapEncoder struct {
 	elemEnc encoderFunc
 }
 
-func (me *mapEncoder) encode(e *encodeState, v reflect.Value, _ bool) {
+func (enc *mapEncoder) encode(e *encodeState, v reflect.Value, _ bool) {
 	if v.IsNil() {
 		e.WriteString("null")
 		return
@@ -616,7 +617,7 @@ func (me *mapEncoder) encode(e *encodeState, v reflect.Value, _ bool) {
 		}
 		e.string(k.String())
 		e.WriteByte(':')
-		me.elemEnc(e, v.MapIndex(k), false)
+		enc.elemEnc(e, v.MapIndex(k), false)
 	}
 	e.WriteByte('}')
 }
@@ -698,12 +699,12 @@ type ptrEncoder struct {
 	elemEnc encoderFunc
 }
 
-func (pe *ptrEncoder) encode(e *encodeState, v reflect.Value, quoted bool) {
+func (pe *ptrEncoder) encode(e *encodeState, v reflect.Value, _ bool) {
 	if v.IsNil() {
 		e.WriteString("null")
 		return
 	}
-	pe.elemEnc(e, v.Elem(), quoted)
+	pe.elemEnc(e, v.Elem(), false)
 }
 
 func newPtrEncoder(t reflect.Type) encoderFunc {
@@ -805,9 +806,6 @@ func (e *encodeState) string(s string) (int, error) {
 			case '\r':
 				e.WriteByte('\\')
 				e.WriteByte('r')
-			case '\t':
-				e.WriteByte('\\')
-				e.WriteByte('t')
 			default:
 				// This encodes bytes < 0x20 except for \n and \r,
 				// as well as <, > and &. The latter are escaped because they
@@ -881,12 +879,9 @@ func (e *encodeState) stringBytes(s []byte) (int, error) {
 			case '\r':
 				e.WriteByte('\\')
 				e.WriteByte('r')
-			case '\t':
-				e.WriteByte('\\')
-				e.WriteByte('t')
 			default:
 				// This encodes bytes < 0x20 except for \n and \r,
-				// as well as <, >, and &. The latter are escaped because they
+				// as well as < and >. The latter are escaped because they
 				// can lead to security holes when user-controlled strings
 				// are rendered into JSON and served to some browsers.
 				e.WriteString(`\u00`)
@@ -1109,7 +1104,6 @@ func typeFields(t reflect.Type) []field {
 	}
 
 	fields = out
-	sort.Sort(byIndex(fields))
 
 	return fields
 }
